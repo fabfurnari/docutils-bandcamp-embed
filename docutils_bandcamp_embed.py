@@ -17,6 +17,15 @@ THEMES = {
 }
 BASE_URL = 'http://bandcamp.com'
 
+OPTION_URL = 'url'
+OPTION_ALBUM_ID = 'album_id'
+OPTION_TITLE = 'title'
+OPTION_ARTIST_NAME = 'artist_name'
+OPTION_LAYOUT = 'layout'
+OPTION_THEME = 'theme'
+OPTION_TRACK_NUMBER = 'track_number'
+OPTION_LINKS_COLOR = 'links_color'
+
 class BandcampEmbed(Directive):
 
     def layout(argument):
@@ -28,53 +37,49 @@ class BandcampEmbed(Directive):
     def color(argument):
         return directives.choice(argument, bce.COMMON_COLORS.keys())
 
+    def url(arg):
+        return directives.uri(directives.unchanged_required(arg))
+
+    def album_id(arg):
+        return directives.positive_int(directives.unchanged_required(arg))
+
     has_content = False
-    required_arguments = 4
-    optional_arguments = 4
+    final_argument_whitespace = True
+    required_arguments = 0
     option_spec = {
-        'layout': layout,
-        'theme': theme,
-        'track_number': directives.positive_int,
-        'links_color': color
+        OPTION_URL: url,
+        OPTION_ALBUM_ID: album_id,
+        OPTION_TITLE: directives.unchanged_required,
+        OPTION_ARTIST_NAME: directives.unchanged_required,
+        OPTION_LAYOUT: layout,
+        OPTION_THEME: theme,
+        OPTION_TRACK_NUMBER: directives.positive_int,
+        OPTION_LINKS_COLOR: color
     }
+    optional_arguments = len(option_spec)
 
     def run(self):
-        url = self.arguments[0]
-        if not url:
-            raise self.error('Bandcamp embed URL is empty')
+        (url, album_id, title, artist_name) = self.get_required_options(
+            OPTION_URL, OPTION_ALBUM_ID, OPTION_TITLE, OPTION_ARTIST_NAME)
 
-        album_id = int(self.arguments[1])
-        if album_id <= 0:
-            raise self.error('Incorrect album ID')
+        layout_name = self.options.get(OPTION_LAYOUT, 'standard')
+        layout = LAYOUTS[layout_name]()
 
-        title = self.arguments[2]
-        artist_name = self.arguments[3]
+        links_color = self.options.get(OPTION_LINKS_COLOR, 'blue')
 
-        layout_name = self.options.get('layout', 'standard')
-        if layout_name in LAYOUTS:
-            layout = LAYOUTS[layout_name]()
-        else:
-            raise self.error('Unknown layout')
+        theme_name = self.options.get(OPTION_THEME, 'light')
+        theme = THEMES[theme_name](links_color)
 
-        links_color = self.options.get('links_color', 'blue')
-
-        theme_name = self.options.get('theme', 'light')
-        if theme_name in THEMES:
-            theme = THEMES[theme_name](links_color)
-        else:
-            raise self.error('Unknown theme')
-
-        track_number = None
-        if 'track_number' in self.options:
-            try:
-                track_number = int(self.options['track_number'])
-            except ValueError:
-                raise self.error('Incorrect track number')
+        track_number = self.options.get(OPTION_TRACK_NUMBER, None)
 
         html = bce.build_player(url, BASE_URL, album_id, title,
             artist_name, layout, theme, track_num=track_number)
 
         return [nodes.raw('', html, format='html')]
+
+    def get_required_options(self, *options):
+        for option_name in options:
+            yield self.options.get(option_name, None)
 
 def register():
     directives.register_directive('bandcamp_embed', BandcampEmbed)
