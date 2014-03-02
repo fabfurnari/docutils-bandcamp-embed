@@ -1,3 +1,5 @@
+__version__ = '0.1.0'
+
 from docutils import nodes
 from docutils.parsers.rst import directives, Directive
 
