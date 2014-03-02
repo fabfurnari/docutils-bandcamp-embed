@@ -1,4 +1,4 @@
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 
 from docutils import nodes
 from docutils.parsers.rst import directives, Directive
@@ -79,7 +79,11 @@ class BandcampEmbed(Directive):
 
     def get_required_options(self, *options):
         for option_name in options:
-            yield self.options.get(option_name, None)
+            option = self.options.get(option_name, None)
+            if option:
+                yield option
+            else:
+                raise self.error('Option {0} is empty'.format(option_name))
 
 def register():
     directives.register_directive('bandcamp_embed', BandcampEmbed)
